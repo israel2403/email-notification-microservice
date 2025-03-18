@@ -13,8 +13,8 @@ public class ProductCreatedEventHandler {
 
     private final Logger LOGGER = LoggerFactory.getLogger(ProductCreatedEventHandler.class);
     
-    @KafkaListener(topics = "product-created-events-topic", groupId = "email-notification")
-    public void handleProductCreatedEvent(final ProductCreatedEvent event) {
+    @KafkaListener(topics = "product-created-events-topic")
+    public void handleProductCreatedEvent( ProductCreatedEvent event) {
 
         LOGGER.info("Product created event received: {}", event.getTitle());
     }
