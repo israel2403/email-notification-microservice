@@ -3,6 +3,7 @@ package com.huerta.email_notification_microservice.handler;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -10,6 +11,7 @@ import org.springframework.kafka.support.KafkaHeaders;
 import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestTemplate;
@@ -17,6 +19,7 @@ import org.springframework.web.client.RestTemplate;
 import com.huerta.core.ProductCreatedEvent;
 import com.huerta.email_notification_microservice.error.NotRetryableException;
 import com.huerta.email_notification_microservice.error.RetryableException;
+import com.huerta.email_notification_microservice.io.ProcessedEventEntity;
 import com.huerta.email_notification_microservice.io.ProcessedEventRepository;
 
 import lombok.AllArgsConstructor;
@@ -31,6 +34,7 @@ public class ProductCreatedEventHandler {
 
     private final ProcessedEventRepository processedEventRepository;
 
+    @Transactional
     @KafkaListener(topics = "product-created-events-topic")
     public void handleProductCreatedEvent(@Payload final ProductCreatedEvent event,
             @Header("messageId") final String messageId,
@@ -52,6 +56,14 @@ public class ProductCreatedEventHandler {
         } catch (Exception e) {
             LOGGER.error("Failed to send email notification: {}", e.getMessage());
             throw new NotRetryableException(e);
+        }
+
+        // Save a unique message ID in a database to prevent duplicate processing
+        try {
+            processedEventRepository.save(new ProcessedEventEntity(messageId, event.getProductId()));
+        } catch (DataIntegrityViolationException ex) {
+            LOGGER.error("Failed to save processed event: {}", ex.getMessage());
+            throw new NotRetryableException(ex);
         }
     }
 }
