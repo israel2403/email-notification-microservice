@@ -40,7 +40,15 @@ public class ProductCreatedEventHandler {
             @Header("messageId") final String messageId,
             @Header(KafkaHeaders.RECEIVED_KEY) final String messageKey) {
         LOGGER.info("Product created event received: {}", event.getTitle() + " - with id: " + event.getProductId());
+
+        // Check if the event has already been processed
+        if (processedEventRepository.findByMessageId(messageId).isPresent()) {
+            LOGGER.info("Event with message ID {} has already been processed", messageId);
+            return;
+        }
+
         String requestUrl = "http://localhost:8082/response/200";
+
         try {
             final ResponseEntity<String> response = restTemplate.exchange(requestUrl, HttpMethod.GET, null,
                     String.class);
