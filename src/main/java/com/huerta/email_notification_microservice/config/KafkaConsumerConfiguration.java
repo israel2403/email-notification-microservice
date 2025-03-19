@@ -19,6 +19,10 @@ import org.springframework.kafka.listener.DeadLetterPublishingRecoverer;
 import org.springframework.kafka.listener.DefaultErrorHandler;
 import org.springframework.kafka.support.serializer.ErrorHandlingDeserializer;
 import org.springframework.kafka.support.serializer.JsonDeserializer;
+import org.springframework.util.backoff.FixedBackOff;
+
+import com.huerta.email_notification_microservice.error.NotRetryableException;
+import com.huerta.email_notification_microservice.error.RetryableException;
 
 import lombok.AllArgsConstructor;
 
@@ -53,7 +57,7 @@ public class KafkaConsumerConfiguration {
                 environment.getProperty("spring.kafka.consumer.properties.spring.json.trusted.packages"));
 
         // Set the group ID for the Kafka Consumer
-        config.put(ConsumerConfig.GROUP_ID_CONFIG, environment.getProperty("spring.kafka.consumer.group-id"));
+        config.put(ConsumerConfig.GROUP_ID_CONFIG, environment.getProperty("consumer.group-id"));
 
         return new DefaultKafkaConsumerFactory<>(config);
     }
@@ -81,7 +85,9 @@ public class KafkaConsumerConfiguration {
     public ConcurrentKafkaListenerContainerFactory<String, Object> kafkaListenerContainerFactory(
             final ConsumerFactory<String, Object> consumerFactory, final KafkaTemplate<String, Object> kafkaTemplate) {
         final DefaultErrorHandler errorHandler = new DefaultErrorHandler(
-                new DeadLetterPublishingRecoverer(kafkaTemplate));
+                new DeadLetterPublishingRecoverer(kafkaTemplate), new FixedBackOff(5000, 3));
+        errorHandler.addNotRetryableExceptions(NotRetryableException.class);
+        errorHandler.addRetryableExceptions(RetryableException.class);
         final ConcurrentKafkaListenerContainerFactory<String, Object> factory = new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(consumerFactory);
         factory.setConsumerFactory(consumerFactory);
@@ -103,10 +109,12 @@ public class KafkaConsumerConfiguration {
                 environment.getProperty("spring.kafka.consumer.bootstrap-servers"));
 
         // Specify the value serializer for Kafka Producer
-        config.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, org.springframework.kafka.support.serializer.JsonSerializer.class);
+        config.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG,
+                org.springframework.kafka.support.serializer.JsonSerializer.class);
 
         // Specify the key serializer for Kafka Producer
-        config.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, org.apache.kafka.common.serialization.StringSerializer.class);
+        config.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG,
+                org.apache.kafka.common.serialization.StringSerializer.class);
 
         return new DefaultKafkaProducerFactory<>(config);
     }
