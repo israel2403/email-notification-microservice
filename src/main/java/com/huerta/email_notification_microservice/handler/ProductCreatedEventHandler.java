@@ -17,6 +17,7 @@ import org.springframework.web.client.RestTemplate;
 import com.huerta.core.ProductCreatedEvent;
 import com.huerta.email_notification_microservice.error.NotRetryableException;
 import com.huerta.email_notification_microservice.error.RetryableException;
+import com.huerta.email_notification_microservice.io.ProcessedEventRepository;
 
 import lombok.AllArgsConstructor;
 
@@ -27,6 +28,8 @@ public class ProductCreatedEventHandler {
     private final Logger LOGGER = LoggerFactory.getLogger(ProductCreatedEventHandler.class);
 
     private final RestTemplate restTemplate;
+
+    private final ProcessedEventRepository processedEventRepository;
 
     @KafkaListener(topics = "product-created-events-topic")
     public void handleProductCreatedEvent(@Payload final ProductCreatedEvent event,
